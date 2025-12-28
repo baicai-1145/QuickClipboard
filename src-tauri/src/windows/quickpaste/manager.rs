@@ -5,13 +5,23 @@ use crate::services::system::input_monitor::{enable_quickpaste_keyboard_mode, di
 
 fn create_window(app: &AppHandle) -> Result<tauri::WebviewWindow, String> {
     let settings = crate::get_settings();
-    let window = WebviewWindowBuilder::new(app, "quickpaste", WebviewUrl::App("windows/quickpaste/index.html".into()))
+    let mut builder = WebviewWindowBuilder::new(
+        app,
+        "quickpaste",
+        WebviewUrl::App("windows/quickpaste/index.html".into()),
+    )
         .title("便捷粘贴")
         .inner_size(settings.quickpaste_window_width as f64, settings.quickpaste_window_height as f64)
         .min_inner_size(200.0, 300.0)
         .max_inner_size(800.0, 1000.0)
-        .decorations(false)
-        .transparent(true)
+        .decorations(false);
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        builder = builder.transparent(true);
+    }
+
+    let window = builder
         .shadow(false)
         .always_on_top(true)
         .skip_taskbar(true)
@@ -22,9 +32,9 @@ fn create_window(app: &AppHandle) -> Result<tauri::WebviewWindow, String> {
         .focusable(false)
         .maximizable(false)
         .minimizable(false)
-        .drag_and_drop(false)
+        .disable_drag_drop_handler()
         .build()
-        .map_err(|e| e.to_string())?;
+        .map_err(|e: tauri::Error| e.to_string())?;
     
     #[cfg(debug_assertions)]
     window.open_devtools();
@@ -74,4 +84,3 @@ pub fn hide_quickpaste_window(app: &AppHandle) -> Result<(), String> {
     set_visible(false);
     Ok(())
 }
-

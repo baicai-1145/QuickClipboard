@@ -49,11 +49,8 @@ enigo = "0.6.1"
 tauri-plugin-autostart = "2.5.1"
 active-win-pos-rs = "0.8"
 xcap = {git="https://github.com/mosheng1/xcap"}
-scap = { git = "https://github.com/mosheng1/scap" }
 atree = "0.5.2"
 rstar = "0.12.2"
-qcocr = {git="https://github.com/mosheng1/qcocr"}
-winreg = "0.55"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.62.2", features = [
@@ -70,6 +67,15 @@ windows = { version = "0.62.2", features = [
     "Win32_Graphics_Gdi",
 ] }
 uiautomation = "0.24.0"
+scap = { git = "https://github.com/mosheng1/scap" }
+winreg = "0.55"
+qcocr = { git = "https://github.com/mosheng1/qcocr" }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6.3"
+objc2-foundation = "0.3.2"
+objc2-core-foundation = "0.3.2"
+core-graphics = "0.24"
 
 [features]
 custom-protocol = ["tauri/custom-protocol"]
@@ -83,4 +89,3 @@ strip = "debuginfo"
 debug = false
 incremental = false
 overflow-checks = false
-

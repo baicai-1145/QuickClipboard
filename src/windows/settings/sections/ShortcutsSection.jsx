@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { useEffect, useMemo, useState } from 'react';
 import SettingsSection from '../components/SettingsSection';
 import SettingItem from '../components/SettingItem';
 import Toggle from '@shared/components/ui/Toggle';
@@ -9,6 +10,7 @@ import ShortcutComboInput from '../components/ShortcutComboInput';
 import { useShortcutStatuses } from '@shared/hooks/useShortcutStatuses';
 import { useShortcutDuplicateCheck } from '@shared/hooks/useShortcutDuplicateCheck';
 import { promptDisableWinVHotkeyIfNeeded, promptEnableWinVHotkey } from '@shared/api/system';
+import { getPlatform } from '@shared/utils/platform';
 
 function ShortcutsSection({
   settings,
@@ -27,8 +29,50 @@ function ShortcutsSection({
     hasDuplicate,
     getDuplicateError
   } = useShortcutDuplicateCheck(settings);
+  const [platform, setPlatform] = useState('unknown');
+  const isWindowsPlatform = platform === 'windows';
+  const isMacPlatform = platform === 'macos';
+
+  useEffect(() => {
+    getPlatform().then(setPlatform).catch(() => setPlatform('unknown'));
+  }, []);
+
+  const shortcutDefaults = useMemo(() => {
+    if (isMacPlatform) {
+      return {
+        toggleShortcut: 'Shift+Space',
+        quickpasteShortcut: 'Option+Space',
+        toggleClipboardMonitorShortcut: 'Option+Shift+Z',
+        togglePasteWithFormatShortcut: 'Option+Shift+X',
+        screenshotShortcut: 'Cmd+Shift+A',
+        executeItemShortcut: 'Cmd+Enter',
+        previousGroupShortcut: 'Cmd+ArrowUp',
+        nextGroupShortcut: 'Cmd+ArrowDown',
+        togglePinShortcut: 'Cmd+Shift+P',
+        numberShortcutsModifier: 'Option'
+      };
+    }
+    return {
+      toggleShortcut: 'Shift+Space',
+      quickpasteShortcut: 'Ctrl+`',
+      toggleClipboardMonitorShortcut: 'Ctrl+Shift+Z',
+      togglePasteWithFormatShortcut: 'Ctrl+Shift+X',
+      screenshotShortcut: 'Ctrl+Shift+A',
+      executeItemShortcut: 'Ctrl+Enter',
+      previousGroupShortcut: 'Ctrl+ArrowUp',
+      nextGroupShortcut: 'Ctrl+ArrowDown',
+      togglePinShortcut: 'Ctrl+P',
+      numberShortcutsModifier: 'Ctrl'
+    };
+  }, [isMacPlatform]);
+
+  const togglePresets = useMemo(() => {
+    if (isWindowsPlatform) return ['Shift+Space', 'Win+V', 'Ctrl+Alt+V', 'F1'];
+    return ['Shift+Space', 'Cmd+Shift+V', 'Ctrl+Alt+V', 'F1'];
+  }, [isWindowsPlatform]);
+
   const handleShortcutChange = async (key, value) => {
-    if (key === 'toggleShortcut' && value === 'Win+V' && settings.toggleShortcut !== 'Win+V') {
+    if (isWindowsPlatform && key === 'toggleShortcut' && value === 'Win+V' && settings.toggleShortcut !== 'Win+V') {
       try {
         const ok = await promptDisableWinVHotkeyIfNeeded();
         if (!ok) {
@@ -69,6 +113,7 @@ function ShortcutsSection({
   ];
   
   const mouseModifierOptions = ['Ctrl', 'Shift', 'Alt'];
+  const macMouseModifierOptions = ['Cmd', 'Option', 'Ctrl', 'Shift'];
   const mouseTriggerOptions = [{
     value: 'short_press',
     label: t('settings.shortcuts.mouseMiddleTriggerShortPress')
@@ -83,42 +128,44 @@ function ShortcutsSection({
             <ShortcutInput
               value={settings.toggleShortcut}
               onChange={value => handleShortcutChange('toggleShortcut', value)}
-              onReset={() => handleShortcutChange('toggleShortcut', 'Shift+Space')}
-              presets={['Shift+Space', 'Win+V', 'Ctrl+Alt+V', 'F1']}
+              onReset={() => handleShortcutChange('toggleShortcut', shortcutDefaults.toggleShortcut)}
+              presets={togglePresets}
               hasError={hasErrorStatus('toggleShortcut', 'toggle')}
               errorMessage={getErrorMessage('toggleShortcut', 'toggle')}
             />
 
-            <button
-              type="button"
-              className="text-xs text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 hover:underline"
-              onClick={async () => {
-                try {
-                  await onSettingChange('toggleShortcut', 'Shift+Space');
-                  await promptEnableWinVHotkey();
-                  setTimeout(() => {
-                    reload();
-                  }, 150);
-                } catch (error) {
-                  console.error('调用恢复系统 Win+V 命令失败:', error);
-                }
-              }}
-            >
-              {t('settings.shortcuts.restoreSystemWinV')}
-            </button>
+            {isWindowsPlatform && (
+              <button
+                type="button"
+                className="text-xs text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 hover:underline"
+                onClick={async () => {
+                  try {
+                    await onSettingChange('toggleShortcut', 'Shift+Space');
+                    await promptEnableWinVHotkey();
+                    setTimeout(() => {
+                      reload();
+                    }, 150);
+                  } catch (error) {
+                    console.error('调用恢复系统 Win+V 命令失败:', error);
+                  }
+                }}
+              >
+                {t('settings.shortcuts.restoreSystemWinV')}
+              </button>
+            )}
           </div>
         </SettingItem>
 
         <SettingItem label={t('settings.shortcuts.quickpasteWindow')} description={t('settings.shortcuts.quickpasteWindowDesc')}>
-          <ShortcutInput value={settings.quickpasteShortcut} onChange={value => handleShortcutChange('quickpasteShortcut', value)} onReset={() => handleShortcutChange('quickpasteShortcut', 'Ctrl+`')} hasError={hasErrorStatus('quickpasteShortcut', 'quickpaste')} errorMessage={getErrorMessage('quickpasteShortcut', 'quickpaste')} />
+          <ShortcutInput value={settings.quickpasteShortcut} onChange={value => handleShortcutChange('quickpasteShortcut', value)} onReset={() => handleShortcutChange('quickpasteShortcut', shortcutDefaults.quickpasteShortcut)} hasError={hasErrorStatus('quickpasteShortcut', 'quickpaste')} errorMessage={getErrorMessage('quickpasteShortcut', 'quickpaste')} />
         </SettingItem>
 
         <SettingItem label={t('settings.shortcuts.toggleClipboardMonitor')} description={t('settings.shortcuts.toggleClipboardMonitorDesc')}>
-          <ShortcutInput value={settings.toggleClipboardMonitorShortcut} onChange={value => handleShortcutChange('toggleClipboardMonitorShortcut', value)} onReset={() => handleShortcutChange('toggleClipboardMonitorShortcut', 'Ctrl+Shift+Z')} hasError={hasErrorStatus('toggleClipboardMonitorShortcut', 'toggle_clipboard_monitor')} errorMessage={getErrorMessage('toggleClipboardMonitorShortcut', 'toggle_clipboard_monitor')} />
+          <ShortcutInput value={settings.toggleClipboardMonitorShortcut} onChange={value => handleShortcutChange('toggleClipboardMonitorShortcut', value)} onReset={() => handleShortcutChange('toggleClipboardMonitorShortcut', shortcutDefaults.toggleClipboardMonitorShortcut)} hasError={hasErrorStatus('toggleClipboardMonitorShortcut', 'toggle_clipboard_monitor')} errorMessage={getErrorMessage('toggleClipboardMonitorShortcut', 'toggle_clipboard_monitor')} />
         </SettingItem>
 
         <SettingItem label={t('settings.shortcuts.togglePasteWithFormat')} description={t('settings.shortcuts.togglePasteWithFormatDesc')}>
-          <ShortcutInput value={settings.togglePasteWithFormatShortcut} onChange={value => handleShortcutChange('togglePasteWithFormatShortcut', value)} onReset={() => handleShortcutChange('togglePasteWithFormatShortcut', 'Ctrl+Shift+X')} hasError={hasErrorStatus('togglePasteWithFormatShortcut', 'toggle_paste_with_format')} errorMessage={getErrorMessage('togglePasteWithFormatShortcut', 'toggle_paste_with_format')} />
+          <ShortcutInput value={settings.togglePasteWithFormatShortcut} onChange={value => handleShortcutChange('togglePasteWithFormatShortcut', value)} onReset={() => handleShortcutChange('togglePasteWithFormatShortcut', shortcutDefaults.togglePasteWithFormatShortcut)} hasError={hasErrorStatus('togglePasteWithFormatShortcut', 'toggle_paste_with_format')} errorMessage={getErrorMessage('togglePasteWithFormatShortcut', 'toggle_paste_with_format')} />
         </SettingItem>
 
         <SettingItem label={t('settings.shortcuts.pastePlainText')} description={t('settings.shortcuts.pastePlainTextDesc')}>
@@ -136,7 +183,7 @@ function ShortcutsSection({
 
       <SettingsSection title={t('settings.shortcuts.screenshotTitle')} description={t('settings.shortcuts.screenshotSectionDesc')}>
         <SettingItem label={t('settings.shortcuts.screenshot')} description={t('settings.shortcuts.screenshotDesc')}>
-          <ShortcutInput value={settings.screenshotShortcut} onChange={value => handleShortcutChange('screenshotShortcut', value)} onReset={() => handleShortcutChange('screenshotShortcut', 'Ctrl+Shift+A')} hasError={hasErrorStatus('screenshotShortcut', 'screenshot')} errorMessage={getErrorMessage('screenshotShortcut', 'screenshot')} />
+          <ShortcutInput value={settings.screenshotShortcut} onChange={value => handleShortcutChange('screenshotShortcut', value)} onReset={() => handleShortcutChange('screenshotShortcut', shortcutDefaults.screenshotShortcut)} hasError={hasErrorStatus('screenshotShortcut', 'screenshot')} errorMessage={getErrorMessage('screenshotShortcut', 'screenshot')} />
         </SettingItem>
 
         <SettingItem label={t('settings.shortcuts.screenshotQuickSave')} description={t('settings.shortcuts.screenshotQuickSaveDesc')}>
@@ -161,7 +208,7 @@ function ShortcutsSection({
           <ShortcutComboInput 
             value={settings.numberShortcutsModifier} 
             onChange={value => onSettingChange('numberShortcutsModifier', value)} 
-            modifierOptions={['Ctrl', 'Shift']}
+            modifierOptions={isMacPlatform ? ['Cmd', 'Option', 'Ctrl', 'Shift'] : ['Ctrl', 'Shift']}
             fixedKeyOptions={numberKeyTypeOptions}
           />
         </SettingItem>
@@ -183,7 +230,7 @@ function ShortcutsSection({
           <ShortcutComboInput 
             value={settings.mouseMiddleButtonModifier === 'None' ? '' : settings.mouseMiddleButtonModifier} 
             onChange={value => onSettingChange('mouseMiddleButtonModifier', value || 'None')} 
-            modifierOptions={mouseModifierOptions}
+            modifierOptions={isMacPlatform ? macMouseModifierOptions : mouseModifierOptions}
             fixedKey={t('settings.shortcuts.middleButton')}
             allowEmpty
           />
@@ -228,19 +275,19 @@ function ShortcutsSection({
         </SettingItem>
 
         <SettingItem label={t('settings.shortcuts.executeItem')} description={t('settings.shortcuts.executeItemDesc')}>
-          <ShortcutInput value={settings.executeItemShortcut} onChange={value => onSettingChange('executeItemShortcut', value)} onReset={() => onSettingChange('executeItemShortcut', 'Ctrl+Enter')} hasError={hasErrorStatus('executeItemShortcut')} errorMessage={getErrorMessage('executeItemShortcut')} />
+          <ShortcutInput value={settings.executeItemShortcut} onChange={value => onSettingChange('executeItemShortcut', value)} onReset={() => onSettingChange('executeItemShortcut', shortcutDefaults.executeItemShortcut)} hasError={hasErrorStatus('executeItemShortcut')} errorMessage={getErrorMessage('executeItemShortcut')} />
         </SettingItem>
 
         <SettingItem label={t('settings.shortcuts.previousGroup')} description={t('settings.shortcuts.previousGroupDesc')}>
-          <ShortcutInput value={settings.previousGroupShortcut} onChange={value => onSettingChange('previousGroupShortcut', value)} onReset={() => onSettingChange('previousGroupShortcut', 'Ctrl+ArrowUp')} hasError={hasErrorStatus('previousGroupShortcut')} errorMessage={getErrorMessage('previousGroupShortcut')} />
+          <ShortcutInput value={settings.previousGroupShortcut} onChange={value => onSettingChange('previousGroupShortcut', value)} onReset={() => onSettingChange('previousGroupShortcut', shortcutDefaults.previousGroupShortcut)} hasError={hasErrorStatus('previousGroupShortcut')} errorMessage={getErrorMessage('previousGroupShortcut')} />
         </SettingItem>
 
         <SettingItem label={t('settings.shortcuts.nextGroup')} description={t('settings.shortcuts.nextGroupDesc')}>
-          <ShortcutInput value={settings.nextGroupShortcut} onChange={value => onSettingChange('nextGroupShortcut', value)} onReset={() => onSettingChange('nextGroupShortcut', 'Ctrl+ArrowDown')} hasError={hasErrorStatus('nextGroupShortcut')} errorMessage={getErrorMessage('nextGroupShortcut')} />
+          <ShortcutInput value={settings.nextGroupShortcut} onChange={value => onSettingChange('nextGroupShortcut', value)} onReset={() => onSettingChange('nextGroupShortcut', shortcutDefaults.nextGroupShortcut)} hasError={hasErrorStatus('nextGroupShortcut')} errorMessage={getErrorMessage('nextGroupShortcut')} />
         </SettingItem>
 
         <SettingItem label={t('settings.shortcuts.togglePin')} description={t('settings.shortcuts.togglePinDesc')}>
-          <ShortcutInput value={settings.togglePinShortcut} onChange={value => onSettingChange('togglePinShortcut', value)} onReset={() => onSettingChange('togglePinShortcut', 'Ctrl+P')} hasError={hasErrorStatus('togglePinShortcut')} errorMessage={getErrorMessage('togglePinShortcut')} />
+          <ShortcutInput value={settings.togglePinShortcut} onChange={value => onSettingChange('togglePinShortcut', value)} onReset={() => onSettingChange('togglePinShortcut', shortcutDefaults.togglePinShortcut)} hasError={hasErrorStatus('togglePinShortcut')} errorMessage={getErrorMessage('togglePinShortcut')} />
         </SettingItem>
       </SettingsSection>
     </>;

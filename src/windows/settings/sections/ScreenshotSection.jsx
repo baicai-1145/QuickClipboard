@@ -1,8 +1,10 @@
 import { useTranslation } from 'react-i18next';
+import { useEffect, useMemo, useState } from 'react';
 import SettingsSection from '../components/SettingsSection';
 import SettingItem from '../components/SettingItem';
 import Toggle from '@shared/components/ui/Toggle';
 import Select from '@shared/components/ui/Select';
+import { isWindows } from '@shared/utils/platform';
 function ScreenshotSection({
   settings,
   onSettingChange
@@ -10,23 +12,38 @@ function ScreenshotSection({
   const {
     t
   } = useTranslation();
-  const elementDetectionOptions = [{
-    value: 'none',
-    label: t('settings.screenshot.detectionNone')
-  }, {
-    value: 'window',
-    label: t('settings.screenshot.detectionWindow')
-  }, {
-    value: 'all',
-    label: t('settings.screenshot.detectionAll')
-  }];
+  const [isWindowsPlatform, setIsWindowsPlatform] = useState(false);
+
+  useEffect(() => {
+    isWindows().then(setIsWindowsPlatform).catch(() => setIsWindowsPlatform(false));
+  }, []);
+
+  const elementDetectionOptions = useMemo(() => {
+    const allOptions = [{
+      value: 'none',
+      label: t('settings.screenshot.detectionNone')
+    }, {
+      value: 'window',
+      label: t('settings.screenshot.detectionWindow')
+    }, {
+      value: 'all',
+      label: t('settings.screenshot.detectionAll')
+    }];
+    return isWindowsPlatform ? allOptions : allOptions.slice(0, 1);
+  }, [isWindowsPlatform, t]);
   return <SettingsSection title={t('settings.screenshot.title')} description={t('settings.screenshot.description')}>
       <SettingItem label={t('settings.screenshot.enabled')} description={t('settings.screenshot.enabledDesc')}>
         <Toggle checked={settings.screenshotEnabled} onChange={checked => onSettingChange('screenshotEnabled', checked)} />
       </SettingItem>
 
       <SettingItem label={t('settings.screenshot.elementDetection')} description={t('settings.screenshot.elementDetectionDesc')}>
-        <Select value={settings.screenshotElementDetection || 'all'} onChange={value => onSettingChange('screenshotElementDetection', value)} options={elementDetectionOptions} className="w-48" />
+        <Select
+          value={isWindowsPlatform ? (settings.screenshotElementDetection || 'all') : 'none'}
+          onChange={value => onSettingChange('screenshotElementDetection', value)}
+          options={elementDetectionOptions}
+          className="w-48"
+          disabled={!isWindowsPlatform}
+        />
       </SettingItem>
 
       <SettingItem label={t('settings.screenshot.magnifier')} description={t('settings.screenshot.magnifierDesc')}>

@@ -1,6 +1,21 @@
 import '@tabler/icons-webfont/dist/tabler-icons.min.css';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+
+function isMacOS() {
+  const ua = String(globalThis?.navigator?.userAgent || '').toLowerCase();
+  return ua.includes('mac os x') || ua.includes('macintosh');
+}
+
+function normalizeForDisplay(value) {
+  if (!value) return value;
+  if (isMacOS()) {
+    return value
+      .replaceAll('Win+', 'Cmd+')
+      .replaceAll('Alt+', 'Option+');
+  }
+  return value;
+}
 function ShortcutInput({
   value,
   onChange,
@@ -21,12 +36,13 @@ function ShortcutInput({
       return;
     }
     const keys = [];
+    const mac = isMacOS();
 
     // 添加修饰键
     if (e.ctrlKey) keys.push('Ctrl');
-    if (e.altKey) keys.push('Alt');
+    if (e.altKey) keys.push(mac ? 'Option' : 'Alt');
     if (e.shiftKey) keys.push('Shift');
-    if (e.metaKey) keys.push('Win');
+    if (e.metaKey) keys.push(mac ? 'Cmd' : 'Win');
 
     // 映射特殊键名
     let mainKey = e.key;
@@ -59,7 +75,7 @@ function ShortcutInput({
   return <div className="flex flex-col gap-2">
       <div className="flex items-center gap-2">
         <div className="relative">
-          <input type="text" value={isListening ? t('settings.shortcuts.listening') : value || ''} onClick={() => setIsListening(true)} onKeyDown={handleKeyDown} onBlur={() => setIsListening(false)} readOnly placeholder={t('settings.shortcuts.clickToSet')} className={`
+          <input type="text" value={isListening ? t('settings.shortcuts.listening') : normalizeForDisplay(value) || ''} onClick={() => setIsListening(true)} onKeyDown={handleKeyDown} onBlur={() => setIsListening(false)} readOnly placeholder={t('settings.shortcuts.clickToSet')} className={`
               px-3 py-2 pr-8 w-48 text-sm border rounded-lg
               bg-white dark:bg-gray-700 
               focus:outline-none cursor-pointer
@@ -88,7 +104,7 @@ function ShortcutInput({
             {t('settings.shortcuts.commonShortcuts')}:
           </span>
           {presets.map(preset => <button key={preset} onClick={() => onChange(preset)} className="px-2 py-1 text-xs rounded bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 transition-colors">
-              {preset}
+              {normalizeForDisplay(preset)}
             </button>)}
         </div>}
     </div>;

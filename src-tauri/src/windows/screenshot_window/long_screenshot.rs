@@ -223,12 +223,14 @@ fn rects_overlap(x1: f64, y1: f64, w1: f64, h1: f64, x2: f64, y2: f64, w2: f64, 
 }
 
 // WGC 捕获器
+#[cfg(target_os = "windows")]
 struct WgcCapturer {
     capturer: scap::capturer::Capturer,
     monitor_x: i32,
     monitor_y: i32,
 }
 
+#[cfg(target_os = "windows")]
 impl WgcCapturer {
     fn new(selection_x: f64, selection_y: f64) -> Option<Self> {
         use scap::capturer::{Capturer, Options, Resolution};
@@ -263,7 +265,11 @@ impl WgcCapturer {
         };
 
         let target = xcap_id
-            .and_then(|id| get_all_targets().into_iter().find(|t| matches!(t, Target::Display(d) if d.id == id)))
+            .and_then(|id| {
+                get_all_targets()
+                    .into_iter()
+                    .find(|t| matches!(t, Target::Display(d) if d.id == id))
+            })
             .or_else(|| Some(Target::Display(scap::get_main_display())))?;
 
         let options = Options {
@@ -296,7 +302,7 @@ impl WgcCapturer {
             None => match self.capturer.get_next_frame().map_err(|e| format!("{:?}", e))? {
                 Frame::Video(vf) => vf,
                 Frame::Audio(_) => return Err("收到音频帧".to_string()),
-            }
+            },
         };
 
         let (data, fw, fh) = match video_frame {
@@ -332,6 +338,22 @@ impl WgcCapturer {
     fn stop(&mut self) {
         self.capturer.stop_capture();
     }
+}
+
+#[cfg(not(target_os = "windows"))]
+struct WgcCapturer;
+
+#[cfg(not(target_os = "windows"))]
+impl WgcCapturer {
+    fn new(_selection_x: f64, _selection_y: f64) -> Option<Self> {
+        None
+    }
+
+    fn capture(&mut self, _selection: &SelectionRect) -> Result<RgbaImage, String> {
+        Err("WGC 捕获仅支持 Windows".to_string())
+    }
+
+    fn stop(&mut self) {}
 }
 
 // 主捕获循环

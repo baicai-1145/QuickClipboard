@@ -16,6 +16,7 @@ fn is_prerelease(version: &str) -> bool {
 }
 
 // 检测当前运行的程序是否为安装版
+#[cfg(target_os = "windows")]
 fn is_installed_version() -> bool {
     use winreg::enums::*;
     use winreg::RegKey;
@@ -64,6 +65,11 @@ fn is_installed_version() -> bool {
         }
     }
     
+    false
+}
+
+#[cfg(not(target_os = "windows"))]
+fn is_installed_version() -> bool {
     false
 }
 
@@ -200,4 +206,3 @@ pub async fn check_updates_and_open_window(app: &AppHandle) -> Result<bool, Stri
         None => Ok(false),
     }
 }
-

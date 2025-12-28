@@ -282,6 +282,9 @@ pub fn run() {
                 init_edge_monitor(window.clone());
                 setup_tray(app.handle())?;
                 hotkey::reload_from_settings()?;
+                // macOS 26+ 下 rdev 的 event tap 回调会触发系统的 dispatch queue 断言并导致崩溃。
+                // 目前在 macOS 上禁用该低层输入抓取，避免应用启动即退出。
+                #[cfg(not(target_os = "macos"))]
                 input_monitor::start_monitoring();
                 windows::plugins::context_menu::init();
                 windows::plugins::input_dialog::init();

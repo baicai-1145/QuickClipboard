@@ -160,11 +160,19 @@ pub fn start_drag(window: &WebviewWindow, _: i32, _: i32) -> Result<(), String> 
     clear_snap_if_needed();
     super::state::set_dragging(true);
 
+    let app = window.app_handle();
     let win = window.clone();
-    std::thread::spawn(move || {
-        std::thread::sleep(Duration::from_millis(8));
-        let _ = win.start_dragging();
-    });
+
+    let (tx, rx) = std::sync::mpsc::channel::<Result<(), String>>();
+    app.run_on_main_thread(move || {
+        let res = win.start_dragging().map_err(|e| e.to_string());
+        let _ = tx.send(res);
+    })
+    .map_err(|e| e.to_string())?;
+
+    rx.recv_timeout(Duration::from_secs(2))
+        .map_err(|_| "启动窗口拖拽超时".to_string())??;
+
     Ok(())
 }
 
@@ -172,6 +180,7 @@ pub fn start_drag(window: &WebviewWindow, _: i32, _: i32) -> Result<(), String> 
 pub fn stop_drag(window: &WebviewWindow) -> Result<(), String> {
     super::state::set_dragging(false);
     delayed_check_snap(window);
+    let _ = window.emit("drag-ended", ());
     Ok(())
 }
 

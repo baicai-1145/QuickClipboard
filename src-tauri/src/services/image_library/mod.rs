@@ -124,6 +124,7 @@ fn extract_gif_first_frame(data: &[u8]) -> Option<Vec<u8>> {
 }
 
 // 使用 OCR 识别图片文字
+#[cfg(target_os = "windows")]
 fn ocr_image_text(data: &[u8]) -> Option<String> {
     use qcocr::recognize_from_bytes;
     
@@ -145,6 +146,11 @@ fn ocr_image_text(data: &[u8]) -> Option<String> {
     } else {
         Some(cleaned)
     }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn ocr_image_text(_data: &[u8]) -> Option<String> {
+    None
 }
 
 // 保存图片到图片库

@@ -14,6 +14,7 @@ import { useNavigationKeyboard } from '@shared/hooks/useNavigationKeyboard';
 import { useWindowAnimation } from '@shared/hooks/useWindowAnimation';
 import { applyBackgroundImage, clearBackgroundImage } from '@shared/utils/backgroundManager';
 import { promptDisableWinVHotkeyIfNeeded } from '@shared/api/system';
+import { isWindows } from '@shared/utils/platform';
 import TitleBar from './components/TitleBar';
 import TabNavigation from './components/TabNavigation';
 import ClipboardTab from './components/ClipboardTab';
@@ -54,7 +55,7 @@ function App() {
   useEffect(() => {
     const checkWinV = async () => {
       try {
-        if (settings.toggleShortcut === 'Win+V') {
+        if (await isWindows() && settings.toggleShortcut === 'Win+V') {
           await promptDisableWinVHotkeyIfNeeded();
         }
       } catch (error) {
@@ -180,9 +181,9 @@ function App() {
     };
   }, []);
 
-  // 主内容区域拖拽，排除所有交互元素和列表项
+  // 整个窗口拖拽：排除交互元素、工具按钮、列表/滚动容器等
   const contentDragRef = useWindowDrag({
-    excludeSelectors: ['[data-no-drag]', 'button', '[role="button"]', 'a', 'input', 'textarea'],
+    excludeSelectors: ['[data-no-drag]', 'button', '[role="button"]', '[data-tool-id]', 'a', 'input', 'textarea'],
     allowChildren: true
   });
 
@@ -342,7 +343,7 @@ function App() {
   `.trim().replace(/\s+/g, ' ');
   const TitleBarComponent = <TitleBar ref={searchRef} searchQuery={searchQuery} onSearchChange={setSearchQuery} searchPlaceholder={t('search.placeholder')} onNavigate={handleSearchNavigate} position={settings.titleBarPosition} />;
   const TabNavigationComponent = <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} contentFilter={contentFilter} onFilterChange={setContentFilter} emojiMode={emojiMode} onEmojiModeChange={setEmojiMode} />;
-  const ContentComponent = <div ref={contentDragRef} className="flex-1 overflow-hidden relative">
+  const ContentComponent = <div className="flex-1 overflow-hidden relative">
       {activeTab === 'clipboard' && <ClipboardTab ref={clipboardTabRef} contentFilter={contentFilter} searchQuery={searchQuery} />}
       {activeTab === 'favorites' && <FavoritesTab ref={favoritesTabRef} contentFilter={contentFilter} searchQuery={searchQuery} />}
       {activeTab === 'emoji' && <Suspense fallback={null}><EmojiTab emojiMode={emojiMode} onEmojiModeChange={setEmojiMode} /></Suspense>}
@@ -400,7 +401,7 @@ function App() {
   return <div className={outerContainerClasses} style={{
     padding: '5px'
   }}>
-      <div className={containerClasses} style={{
+      <div ref={contentDragRef} className={containerClasses} style={{
       borderRadius: '8px',
       boxShadow: '0 0 5px 1px rgba(0, 0, 0, 0.3), 0 0 3px 0 rgba(0, 0, 0, 0.2)'
     }}>

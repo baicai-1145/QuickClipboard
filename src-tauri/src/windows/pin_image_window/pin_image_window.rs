@@ -228,7 +228,7 @@ async fn create_pin_image_window(
     physical_x: i32,
     physical_y: i32,
 ) -> Result<WebviewWindow, String> {
-    let window = WebviewWindowBuilder::new(
+    let mut builder = WebviewWindowBuilder::new(
         app, label,
         tauri::WebviewUrl::App("windows/pinImage/pinImage.html".into()),
     )
@@ -238,8 +238,14 @@ async fn create_pin_image_window(
     .resizable(false)
     .maximizable(false)
     .decorations(false)
-    .transparent(true)
-    .shadow(false)
+    .shadow(false);
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        builder = builder.transparent(true);
+    }
+
+    let window = builder
     .always_on_top(true)
     .skip_taskbar(true)
     .focused(false)

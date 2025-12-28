@@ -4,6 +4,7 @@ import {
   loadSettingsFromBackend, 
   saveSettingsToBackend 
 } from '@shared/services/settingsService'
+import { getPlatform } from '@shared/utils/platform'
 
 // 设置 Store
 export const settingsStore = proxy({
@@ -131,10 +132,50 @@ export async function initSettings() {
   
   // 从后端加载所有配置
   await settingsStore.loadSettings()
+
+  // macOS：如果用户尚未改过快捷键（仍是旧 Windows 默认），自动迁移为 mac 默认（避免设置页全是 Ctrl/Win 风格）。
+  try {
+    const platform = await getPlatform()
+    if (platform === 'macos') {
+      const windowsDefaults = {
+        quickpasteShortcut: 'Ctrl+`',
+        screenshotShortcut: 'Ctrl+Shift+A',
+        numberShortcutsModifier: 'Ctrl',
+        executeItemShortcut: 'Ctrl+Enter',
+        previousGroupShortcut: 'Ctrl+ArrowUp',
+        nextGroupShortcut: 'Ctrl+ArrowDown',
+        togglePinShortcut: 'Ctrl+P',
+        toggleClipboardMonitorShortcut: 'Ctrl+Shift+Z',
+        togglePasteWithFormatShortcut: 'Ctrl+Shift+X',
+      }
+      const macDefaults = {
+        quickpasteShortcut: 'Option+Space',
+        screenshotShortcut: 'Cmd+Shift+A',
+        numberShortcutsModifier: 'Option',
+        executeItemShortcut: 'Cmd+Enter',
+        previousGroupShortcut: 'Cmd+ArrowUp',
+        nextGroupShortcut: 'Cmd+ArrowDown',
+        togglePinShortcut: 'Cmd+Shift+P',
+        toggleClipboardMonitorShortcut: 'Option+Shift+Z',
+        togglePasteWithFormatShortcut: 'Option+Shift+X',
+      }
+
+      const updates = {}
+      for (const key of Object.keys(windowsDefaults)) {
+        if (settingsStore[key] === windowsDefaults[key]) {
+          updates[key] = macDefaults[key]
+        }
+      }
+
+      if (Object.keys(updates).length > 0) {
+        settingsStore.updateSettings(updates)
+        await saveSettingsToBackend(settingsStore.getAllSettings(), { showToast: false })
+      }
+    }
+  } catch (_) {}
  
   if (settingsStore.language) {
     const i18n = (await import('@shared/i18n')).default
     await i18n.changeLanguage(settingsStore.language)
   }
 }
-

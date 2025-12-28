@@ -166,10 +166,15 @@ fn handle_key_press(key: Key, _event: &Event) -> bool {
         }
     }
     
-    // Ctrl+V 粘贴音效
+    // 粘贴音效（Windows/Linux: Ctrl+V；macOS: Cmd+V）
     if matches!(key, Key::KeyV) {
         if let Some(state) = KEYBOARD_STATE.try_lock() {
-            if state.ctrl && !state.alt && !state.shift && !state.meta {
+            #[cfg(target_os = "macos")]
+            let is_paste = state.meta && !state.alt && !state.shift && !state.ctrl;
+            #[cfg(not(target_os = "macos"))]
+            let is_paste = state.ctrl && !state.alt && !state.shift && !state.meta;
+
+            if is_paste {
                 crate::AppSounds::play_paste();
             }
         }
@@ -556,4 +561,3 @@ fn handle_click_outside() {
         }
     }
 }
-

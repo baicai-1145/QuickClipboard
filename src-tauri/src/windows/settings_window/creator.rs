@@ -2,7 +2,7 @@ use tauri::AppHandle;
 
 // 创建设置窗口
 pub fn create_settings_window(app: &AppHandle) -> Result<(), String> {
-    let _settings_window = tauri::WebviewWindowBuilder::new(
+    let mut builder = tauri::WebviewWindowBuilder::new(
         app,
         "settings",
         tauri::WebviewUrl::App("windows/settings/index.html".into()),
@@ -13,8 +13,14 @@ pub fn create_settings_window(app: &AppHandle) -> Result<(), String> {
     .center()
     .resizable(false)
     .maximizable(false)
-    .decorations(false)
-    .transparent(true)
+    .decorations(false);
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        builder = builder.transparent(true);
+    }
+
+    let _settings_window = builder
     .skip_taskbar(false)
     .visible(true)
     .focused(true)
@@ -23,4 +29,3 @@ pub fn create_settings_window(app: &AppHandle) -> Result<(), String> {
 
     Ok(())
 }
-

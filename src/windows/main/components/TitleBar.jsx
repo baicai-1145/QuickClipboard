@@ -2,7 +2,6 @@ import '@tabler/icons-webfont/dist/tabler-icons.min.css';
 import { useTranslation } from 'react-i18next';
 import { useSnapshot } from 'valtio';
 import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react';
-import { useWindowDrag } from '@shared/hooks/useWindowDrag';
 import { toolsStore } from '@shared/store/toolsStore';
 import { useSortableList, useSortable, CSS } from '@shared/hooks/useSortable';
 import { DragOverlay, useDroppable } from '@dnd-kit/core';
@@ -70,10 +69,6 @@ const TitleBar = forwardRef(({
   const containerRef = useRef(null);
   const searchRef = useRef(null);
   const isVertical = position === 'left' || position === 'right';
-  const dragRef = useWindowDrag({
-    excludeSelectors: ['[data-no-drag]', 'button', '[role="button"]', '[data-tool-id]', 'input', 'textarea'],
-    allowChildren: true
-  });
 
   // 点击外部折叠面板
   useEffect(() => {
@@ -163,7 +158,7 @@ const TitleBar = forwardRef(({
       }
     }
   }));
-  return <div ref={dragRef} className={`title-bar flex-shrink-0 flex ${isVertical ? 'w-10 h-full flex-col items-center justify-between py-2 bg-gray-100 dark:bg-gray-900 ' + (position === 'left' ? 'border-r border-gray-300/80 dark:border-gray-700/30' : 'border-l border-gray-300/80 dark:border-gray-700/30') : 'h-9 flex-row items-center justify-between px-2 bg-gray-100 dark:bg-gray-900 ' + (position === 'top' ? 'border-b border-gray-300/80 dark:border-gray-700/30' : 'border-t border-gray-300/80 dark:border-gray-700/30')} shadow-sm transition-colors duration-500`}>
+  return <div className={`title-bar flex-shrink-0 flex ${isVertical ? 'w-10 h-full flex-col items-center justify-between py-2 bg-gray-100 dark:bg-gray-900 ' + (position === 'left' ? 'border-r border-gray-300/80 dark:border-gray-700/30' : 'border-l border-gray-300/80 dark:border-gray-700/30') : 'h-9 flex-row items-center justify-between px-2 bg-gray-100 dark:bg-gray-900 ' + (position === 'top' ? 'border-b border-gray-300/80 dark:border-gray-700/30' : 'border-t border-gray-300/80 dark:border-gray-700/30')} shadow-sm transition-colors duration-500`}>
       {/* Logo */}
       <div className="flex items-center gap-1.5 flex-shrink-0 pointer-events-none">
         <div className="w-6 h-6 flex items-center justify-center">

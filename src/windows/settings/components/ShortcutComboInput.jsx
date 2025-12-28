@@ -33,7 +33,7 @@ function ShortcutComboInput({
     }
     
     const parts = val.split('+');
-    const allModifiers = ['Ctrl', 'Shift', 'Alt', 'Meta', 'Win'];
+    const allModifiers = ['Ctrl', 'Shift', 'Alt', 'Option', 'Meta', 'Win', 'Cmd', 'Command', 'Super'];
     const modifiers = [];
     let keyType = '';
     let customKey = '';

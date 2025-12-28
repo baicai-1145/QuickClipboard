@@ -119,12 +119,33 @@ pub async fn show_menu(
     } else {
         let init_logical_x = init_phys_x as f64 / scale;
         let init_logical_y = init_phys_y as f64 / scale;
-        let w = WebviewWindowBuilder::new(&app, LABEL, tauri::WebviewUrl::App("plugins/context_menu/contextMenu.html".into()))
-            .title("菜单").inner_size(width, height).position(init_logical_x, init_logical_y)
-            .resizable(false).maximizable(false).minimizable(false)
-            .decorations(false).transparent(true).shadow(false)
-            .always_on_top(true).focused(is_tray).focusable(is_tray).visible(false).skip_taskbar(true)
-            .build().map_err(|e| format!("创建菜单窗口失败: {}", e))?;
+        let mut builder = WebviewWindowBuilder::new(
+            &app,
+            LABEL,
+            tauri::WebviewUrl::App("plugins/context_menu/contextMenu.html".into()),
+        )
+        .title("菜单")
+        .inner_size(width, height)
+        .position(init_logical_x, init_logical_y)
+        .resizable(false)
+        .maximizable(false)
+        .minimizable(false)
+        .decorations(false)
+        .shadow(false);
+
+        #[cfg(not(target_os = "macos"))]
+        {
+            builder = builder.transparent(true);
+        }
+
+        let w = builder
+            .always_on_top(true)
+            .focused(is_tray)
+            .focusable(is_tray)
+            .visible(false)
+            .skip_taskbar(true)
+            .build()
+            .map_err(|e| format!("创建菜单窗口失败: {}", e))?;
         let _ = w.set_ignore_cursor_events(false);
         let _ = w.set_position(tauri::PhysicalPosition::new(init_phys_x, init_phys_y));
         w

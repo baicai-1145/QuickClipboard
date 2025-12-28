@@ -9,6 +9,7 @@ import { toast } from '@shared/store/toastStore';
 import { showConfirm } from '@shared/utils/dialog';
 import { getAvailableLanguages } from '@shared/i18n';
 import i18n from '@shared/i18n';
+import { isWindows } from '@shared/utils/platform';
 function GeneralSection({
   settings,
   onSettingChange
@@ -20,10 +21,13 @@ function GeneralSection({
   const [autoStartSynced, setAutoStartSynced] = useState(false);
   const [autoStartMismatch, setAutoStartMismatch] = useState(false);
   const [runAsAdminLoading, setRunAsAdminLoading] = useState(false);
+  const [isWindowsPlatform, setIsWindowsPlatform] = useState(false);
 
   // 初同步自启动状态和管理员权限状态
   useEffect(() => {
     const syncStatuses = async () => {
+      const isWin = await isWindows().catch(() => false);
+      setIsWindowsPlatform(isWin);
       try {
         const systemStatus = await getAutoStartStatus();
         if (systemStatus !== settings.autoStart) {
@@ -37,14 +41,16 @@ function GeneralSection({
         setAutoStartSynced(true);
       }
 
-      try {
-        const adminStatus = await getRunAsAdminStatus();
-        if (adminStatus !== settings.runAsAdmin) {
-          console.warn('管理员权限状态不一致 - 系统:', adminStatus, '配置:', settings.runAsAdmin);
-          await onSettingChange('runAsAdmin', adminStatus);
+      if (isWin) {
+        try {
+          const adminStatus = await getRunAsAdminStatus();
+          if (adminStatus !== settings.runAsAdmin) {
+            console.warn('管理员权限状态不一致 - 系统:', adminStatus, '配置:', settings.runAsAdmin);
+            await onSettingChange('runAsAdmin', adminStatus);
+          }
+        } catch (error) {
+          console.error('获取管理员权限状态失败:', error);
         }
-      } catch (error) {
-        console.error('获取管理员权限状态失败:', error);
       }
     };
     syncStatuses();
@@ -131,9 +137,11 @@ function GeneralSection({
         <Toggle checked={settings.autoStart} onChange={handleAutoStartChange} disabled={autoStartLoading} />
       </SettingItem>
 
-      <SettingItem label={t('settings.general.runAsAdmin')} description={t('settings.general.runAsAdminDesc')}>
-        <Toggle checked={settings.runAsAdmin} onChange={handleRunAsAdminChange} disabled={runAsAdminLoading} />
-      </SettingItem>
+      {isWindowsPlatform && (
+        <SettingItem label={t('settings.general.runAsAdmin')} description={t('settings.general.runAsAdminDesc')}>
+          <Toggle checked={settings.runAsAdmin} onChange={handleRunAsAdminChange} disabled={runAsAdminLoading} />
+        </SettingItem>
+      )}
 
       <SettingItem label={t('settings.general.startupNotification')} description={t('settings.general.startupNotificationDesc')}>
         <Toggle checked={settings.showStartupNotification} onChange={checked => onSettingChange('showStartupNotification', checked)} />

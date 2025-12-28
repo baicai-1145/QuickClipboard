@@ -59,6 +59,9 @@ fn get_app() -> Result<AppHandle, String> {
 fn parse_shortcut(shortcut_str: &str) -> Result<Shortcut, String> {
     let normalized = shortcut_str
         .replace("Win+", "Super+")
+        .replace("Cmd+", "Super+")
+        .replace("Command+", "Super+")
+        .replace("Option+", "Alt+")
         .replace("Ctrl+", "Control+");
     
     normalized.parse::<Shortcut>()
@@ -608,4 +611,3 @@ pub fn reload_from_settings() -> Result<(), String> {
     
     Ok(())
 }
-

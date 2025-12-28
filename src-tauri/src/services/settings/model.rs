@@ -147,7 +147,7 @@ impl Default for AppSettings {
             background_image_path: String::new(),
             toggle_shortcut: "Shift+Space".to_string(),
             number_shortcuts: true,
-            number_shortcuts_modifier: "Ctrl".to_string(),
+            number_shortcuts_modifier: if cfg!(target_os = "macos") { "Option".to_string() } else { "Ctrl".to_string() },
             clipboard_monitor: true,
             ignore_duplicates: true,
             save_images: true,
@@ -159,7 +159,7 @@ impl Default for AppSettings {
             paste_sound_path: String::new(),
 
             screenshot_enabled: true,
-            screenshot_shortcut: "Ctrl+Shift+A".to_string(),
+            screenshot_shortcut: if cfg!(target_os = "macos") { "Cmd+Shift+A".to_string() } else { "Ctrl+Shift+A".to_string() },
             screenshot_quick_save_shortcut: String::new(),
             screenshot_quick_pin_shortcut: String::new(),
             screenshot_quick_ocr_shortcut: String::new(),
@@ -172,7 +172,7 @@ impl Default for AppSettings {
             screenshot_color_include_format: true,
 
             quickpaste_enabled: true,
-            quickpaste_shortcut: "Ctrl+`".to_string(),
+            quickpaste_shortcut: if cfg!(target_os = "macos") { "Option+Space".to_string() } else { "Ctrl+`".to_string() },
             quickpaste_paste_on_modifier_release: false,
             quickpaste_scroll_sound: true,
             quickpaste_scroll_sound_path: "sounds/roll.mp3".to_string(),
@@ -232,12 +232,12 @@ impl Default for AppSettings {
             tab_right_shortcut: "ArrowRight".to_string(),
             focus_search_shortcut: "Tab".to_string(),
             hide_window_shortcut: "Escape".to_string(),
-            execute_item_shortcut: "Ctrl+Enter".to_string(),
-            previous_group_shortcut: "Ctrl+ArrowUp".to_string(),
-            next_group_shortcut: "Ctrl+ArrowDown".to_string(),
-            toggle_pin_shortcut: "Ctrl+P".to_string(),
-            toggle_clipboard_monitor_shortcut: "Ctrl+Shift+Z".to_string(),
-            toggle_paste_with_format_shortcut: "Ctrl+Shift+X".to_string(),
+            execute_item_shortcut: if cfg!(target_os = "macos") { "Cmd+Enter".to_string() } else { "Ctrl+Enter".to_string() },
+            previous_group_shortcut: if cfg!(target_os = "macos") { "Cmd+ArrowUp".to_string() } else { "Ctrl+ArrowUp".to_string() },
+            next_group_shortcut: if cfg!(target_os = "macos") { "Cmd+ArrowDown".to_string() } else { "Ctrl+ArrowDown".to_string() },
+            toggle_pin_shortcut: if cfg!(target_os = "macos") { "Cmd+Shift+P".to_string() } else { "Ctrl+P".to_string() },
+            toggle_clipboard_monitor_shortcut: if cfg!(target_os = "macos") { "Option+Shift+Z".to_string() } else { "Ctrl+Shift+Z".to_string() },
+            toggle_paste_with_format_shortcut: if cfg!(target_os = "macos") { "Option+Shift+X".to_string() } else { "Ctrl+Shift+X".to_string() },
             paste_plain_text_shortcut: String::new(),
 
             custom_storage_path: None,
@@ -245,4 +245,3 @@ impl Default for AppSettings {
         }
     }
 }
-

@@ -110,7 +110,7 @@ fn recreate_main_window(app: &AppHandle) -> Result<(), String> {
     } else {
         (360, 520)
     };
-    let window = WebviewWindowBuilder::new(
+    let mut builder = WebviewWindowBuilder::new(
         app,
         "main",
         WebviewUrl::App("windows/main/index.html".into()),
@@ -120,8 +120,14 @@ fn recreate_main_window(app: &AppHandle) -> Result<(), String> {
     .min_inner_size(350.0, 500.0)
     .max_inner_size(500.0, 800.0)
     .decorations(false)
-    .transparent(true)
-    .shadow(false)
+    .shadow(false);
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        builder = builder.transparent(true);
+    }
+
+    let window = builder
     .always_on_top(true)
     .skip_taskbar(true)
     .visible(false) 

@@ -22,7 +22,7 @@ pub fn create_text_editor_window(
         url = format!("{}&group={}", url, group);
     }
     
-    let _editor_window = tauri::WebviewWindowBuilder::new(
+    let mut builder = tauri::WebviewWindowBuilder::new(
         app,
         &window_label,
         tauri::WebviewUrl::App(url.into()),
@@ -33,8 +33,14 @@ pub fn create_text_editor_window(
     .center()
     .resizable(true)
     .maximizable(true)
-    .decorations(false)
-    .transparent(false)
+    .decorations(false);
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        builder = builder.transparent(false);
+    }
+
+    let _editor_window = builder
     .skip_taskbar(false)
     .visible(true)
     .focused(true)
@@ -43,4 +49,3 @@ pub fn create_text_editor_window(
 
     Ok(window_label)
 }
-

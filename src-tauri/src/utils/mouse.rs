@@ -12,6 +12,18 @@ pub fn get_cursor_position() -> (i32, i32) {
     (pos.0 as i32, pos.1 as i32)
 }
 fn get_system_cursor_position() -> Result<(i32, i32), String> {
+    #[cfg(target_os = "macos")]
+    {
+        use core_graphics::event::CGEvent;
+        use core_graphics::event_source::{CGEventSource, CGEventSourceStateID};
+
+        let source = CGEventSource::new(CGEventSourceStateID::CombinedSessionState)
+            .map_err(|_| "创建 CGEventSource 失败".to_string())?;
+        let event = CGEvent::new(source).map_err(|_| "创建 CGEvent 失败".to_string())?;
+        let loc = event.location();
+        return Ok((loc.x as i32, loc.y as i32));
+    }
+
     use enigo::{Enigo, Mouse, Settings};
     
     let enigo = Enigo::new(&Settings::default())
@@ -42,4 +54,3 @@ pub fn set_cursor_position(x: i32, y: i32) -> Result<(), String> {
     update_cursor_position(x as f64, y as f64);
     Ok(())
 }
-

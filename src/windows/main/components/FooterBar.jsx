@@ -1,7 +1,6 @@
 import '@tabler/icons-webfont/dist/tabler-icons.min.css';
 import { useTranslation } from 'react-i18next';
 import { useSnapshot } from 'valtio';
-import { useWindowDrag } from '@shared/hooks/useWindowDrag';
 import { settingsStore } from '@shared/store/settingsStore';
 import BottomMenuPopup from './BottomMenuPopup';
 function FooterBar({
@@ -11,11 +10,6 @@ function FooterBar({
     t
   } = useTranslation();
   const settings = useSnapshot(settingsStore);
-
-  const dragRef = useWindowDrag({
-    excludeSelectors: ['[data-no-drag]', 'button', '[role="button"]'],
-    allowChildren: true
-  });
 
   const menuItems = [{
     id: 'listStyle',
@@ -73,7 +67,7 @@ function FooterBar({
       numberShortcutHint = `${modifier}+1~9`;
     }
   }
-  return <div ref={dragRef} className="flex-shrink-0 h-5 flex items-center px-3 bg-gray-200 dark:bg-gray-900 border-t border-gray-300 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400 relative footer-bar">
+  return <div className="flex-shrink-0 h-5 flex items-center px-3 bg-gray-200 dark:bg-gray-900 border-t border-gray-300 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400 relative footer-bar">
     <div className="flex items-center gap-2 text-[10px]">
       <span>{toggleShortcutHint} {t('footer.openClipboard')}</span>
       {/* {numberShortcutHint && <span>{numberShortcutHint} {t('footer.pasteShortcut')}</span>} */}

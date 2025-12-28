@@ -8,6 +8,7 @@ pub struct ElementRect {
     pub max_y: i32,
 }
 
+#[cfg(target_os = "windows")]
 impl From<uiautomation::types::Rect> for ElementRect {
     fn from(rect: uiautomation::types::Rect) -> Self {
         ElementRect {

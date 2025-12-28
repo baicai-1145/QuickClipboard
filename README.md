@@ -94,7 +94,8 @@
 
 ## 💻 系统要求
 
-- 🪟 Windows 10 / 11 (x64)  
+- 🪟 Windows 10 / 11 (x64)
+- 🍎 macOS 12+（实验性支持，部分 Windows 专属能力可能不可用）
 
 ---
 
@@ -157,14 +158,18 @@
 ### 环境依赖
 
 - Node.js ≥ 16  
-- Rust ≥ 1.70  
+- Rust（建议使用最新 stable；若遇到 `query stack during panic` 这类编译器崩溃，通常是 Rust 版本过旧/有 bug）
 - Tauri CLI ≥ 2.0
+- macOS: Xcode Command Line Tools（`xcode-select --install`）
 
 ### 常用命令
 
 ```bash
 # 安装依赖
 npm install
+
+# （可选）使用仓库内置 Rust 工具链（避免系统 Rust 版本差异导致构建失败）
+source .cargo/env
 
 # 开发模式
 npm run tauri dev
@@ -173,5 +178,14 @@ npm run tauri dev
 npm run tauri build
 ```
 
----
+### macOS 权限（运行必需）
 
+在 macOS 上，为了让全局快捷键、输入监听、截图等功能正常工作，通常需要在 **系统设置 → 隐私与安全性** 中授予：
+
+- **辅助功能（Accessibility）**：用于模拟按键粘贴、全局快捷键/输入相关能力
+- **输入监控（Input Monitoring）**：用于监听键盘/鼠标事件（如快捷键导航）
+- **屏幕录制（Screen Recording）**：用于截屏/长截图
+- **OCR**：使用系统 `Vision.framework`（无需额外安装 `tesseract`）
+- **说明**：当前 macOS 版本默认不启用底层输入抓取（用于全局按键导航/音效监听等），以避免在新系统版本上触发崩溃。
+
+---
