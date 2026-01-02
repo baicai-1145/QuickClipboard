@@ -1,4 +1,4 @@
-use tauri::{AppHandle,Manager,WebviewUrl,WebviewWindow,WebviewWindowBuilder,Emitter,Position,PhysicalPosition,};
+use tauri::{AppHandle, Emitter, Manager, Position, PhysicalPosition, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 use crate::utils::image_http_server::{PinEditData, set_pin_edit_data, clear_pin_edit_data, get_pin_edit_data};
 use serde_json::json;
 use once_cell::sync::Lazy;
@@ -6,6 +6,7 @@ use parking_lot::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::thread;
 use std::time::Duration;
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 
 #[cfg(target_os = "windows")]
 use windows::Win32::Foundation::HWND;
@@ -56,6 +57,7 @@ fn create_window(app: &AppHandle) -> Result<WebviewWindow, String> {
         .resizable(false)
         .focused(false)
         .focusable(true)
+        .visible_on_all_workspaces(true)
         .maximizable(false)
         .minimizable(false)
         .disable_drag_drop_handler()
@@ -69,9 +71,117 @@ fn get_or_create_window(app: &AppHandle) -> Result<WebviewWindow, String> {
         .unwrap_or_else(|| create_window(app))
 }
 
+#[cfg(target_os = "macos")]
+fn get_macos_monitor_rects() -> Result<Vec<(i32, i32, u32, u32)>, String> {
+    use xcap::Monitor;
+
+    let monitors = Monitor::all().map_err(|e| format!("枚举显示器失败: {}", e))?;
+    if monitors.is_empty() {
+        return Err("未找到显示器".to_string());
+    }
+
+    let mut rects = Vec::with_capacity(monitors.len());
+    for (idx, m) in monitors.into_iter().enumerate() {
+        let x = m.x().map_err(|e| format!("获取显示器 X 坐标失败[{}]: {}", idx, e))?;
+        let y = m.y().map_err(|e| format!("获取显示器 Y 坐标失败[{}]: {}", idx, e))?;
+        let w = m.width().map_err(|e| format!("获取显示器宽度失败[{}]: {}", idx, e))?.max(1);
+        let h = m.height().map_err(|e| format!("获取显示器高度失败[{}]: {}", idx, e))?.max(1);
+        rects.push((x, y, w, h));
+    }
+
+    Ok(rects)
+}
+
+#[cfg(target_os = "macos")]
+fn create_window_for_monitor(
+    app: &AppHandle,
+    label: &str,
+    monitor_index: usize,
+) -> Result<WebviewWindow, String> {
+    let is_dev = cfg!(debug_assertions);
+    let mut builder = WebviewWindowBuilder::new(
+        app,
+        label,
+        WebviewUrl::App(format!("windows/screenshot/index.html?monitor={}", monitor_index).into()),
+    )
+        .title("截屏窗口")
+        .inner_size(1920.0, 1080.0)
+        .position(0.0, 0.0)
+        .decorations(false)
+        .shadow(false);
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        builder = builder.transparent(true);
+    }
+
+    builder
+        .always_on_top(!is_dev)
+        .skip_taskbar(true)
+        .visible(false)
+        .resizable(false)
+        .focused(false)
+        .focusable(true)
+        .visible_on_all_workspaces(true)
+        .maximizable(false)
+        .minimizable(false)
+        .disable_drag_drop_handler()
+        .build()
+        .map_err(|e| format!("创建截屏窗口失败({}): {}", label, e))
+}
+
+#[cfg(target_os = "macos")]
+fn ensure_macos_screenshot_windows(app: &AppHandle) -> Result<Vec<WebviewWindow>, String> {
+    use tauri::{LogicalPosition, LogicalSize, Size};
+
+    let rects = get_macos_monitor_rects()?;
+    let mut windows = Vec::with_capacity(rects.len());
+
+    for (idx, (x, y, w, h)) in rects.iter().copied().enumerate() {
+        let label = if idx == 0 {
+            "screenshot".to_string()
+        } else {
+            format!("screenshot-{}", idx)
+        };
+
+        let window = if let Some(win) = app.get_webview_window(&label) {
+            // 确保 query 参数正确（旧窗口可能没有 monitor 参数）
+            let _ = win.eval(&format!(
+                "(function(){{try{{const p=new URLSearchParams(location.search);if(p.get('monitor')!=='{idx}'){{location.search='?monitor={idx}';}}}}catch(e){{}}}})();"
+            ));
+            win
+        } else {
+            create_window_for_monitor(app, &label, idx)?
+        };
+
+        // macOS：用 logical(点) 尺寸/坐标，避免 Retina 下缩放错位。
+        let _ = window.set_size(Size::Logical(LogicalSize::new(w as f64, h as f64)));
+        let _ = window.set_position(Position::Logical(LogicalPosition::new(x as f64, y as f64)));
+
+        windows.push(window);
+    }
+
+    // 如果显示器数量变少，隐藏多余的 screenshot-* 窗口
+    let expected = windows.len();
+    for (label, win) in app.webview_windows() {
+        if label == "screenshot" {
+            continue;
+        }
+        if let Some(rest) = label.strip_prefix("screenshot-") {
+            if let Ok(idx) = rest.parse::<usize>() {
+                if idx >= expected {
+                    let _ = win.hide();
+                }
+            }
+        }
+    }
+
+    Ok(windows)
+}
+
 fn resize_window_to_virtual_screen(window: &WebviewWindow) {
-    let (x, y, width, height) =
-        crate::screen::ScreenUtils::get_virtual_screen_size().unwrap_or((0, 0, 1920, 1080));
+    let (x, y, width, height) = crate::screen::ScreenUtils::get_virtual_screen_size_by_app(window.app_handle())
+        .unwrap_or((0, 0, 1920, 1080));
 
     let _ = window.set_size(tauri::Size::Physical(tauri::PhysicalSize::new(width as u32, height as u32)));
     let _ = window.set_position(Position::Physical(PhysicalPosition::new(x, y)));
@@ -94,40 +204,90 @@ fn start_screenshot_with_mode(app: &AppHandle, mode: u8) -> Result<(), String> {
     if !settings.screenshot_enabled {
         return Ok(());
     }
-    let window = get_or_create_window(app)?;
 
-    if window.is_visible().unwrap_or(false) {
-        let _ = window.set_focus();
+    #[cfg(target_os = "macos")]
+    {
+        if !crate::windows::screenshot_window::capture::has_screen_capture_permission() {
+            // 尝试触发系统授权弹窗（若系统允许）。多数情况下授权需要重启应用才会生效。
+            let _ = crate::windows::screenshot_window::capture::request_screen_capture_permission();
+
+            let _ = app
+                .dialog()
+                .message("截图需要 macOS 的“屏幕录制”权限。\n\n请到【系统设置 → 隐私与安全性 → 屏幕录制】开启 QuickClipboard，然后完全退出并重新打开应用。\n\n提示：建议把 QuickClipboard.app 放到 /Applications 后再授权。")
+                .buttons(MessageDialogButtons::Ok)
+                .blocking_show();
+
+            return Err("缺少屏幕录制权限".to_string());
+        }
+    }
+    #[cfg(target_os = "macos")]
+    let windows = ensure_macos_screenshot_windows(app)?;
+
+    #[cfg(not(target_os = "macos"))]
+    let windows = vec![get_or_create_window(app)?];
+
+    if windows.iter().any(|w| w.is_visible().unwrap_or(false)) {
+        if let Some(w) = windows.first() {
+            let _ = w.set_focus();
+        }
         return Ok(());
     }
     SCREENSHOT_MODE.store(mode, Ordering::SeqCst);
 
-    set_window_exclude_from_capture(&window, true);
-    
-    resize_window_to_virtual_screen(&window);
-    let is_dev = cfg!(debug_assertions);
-    let _ = window.set_always_on_top(!is_dev);
-    let _ = window.show();
-    let _ = window.set_focus();
-
     let app_clone = app.clone();
     thread::spawn(move || {
+        // 先抓取屏幕，再显示遮罩窗口：
+        // 否则会把遮罩窗口本身捕获进去，导致“只剩 Dock/桌面、应用全黑”的效果。
         let capture_result = crate::services::screenshot::capture_and_store_last(&app_clone);
         
         let app_for_main = app_clone.clone();
         let _ = app_clone.run_on_main_thread(move || {
-            if let Some(window) = app_for_main.get_webview_window("screenshot") {
-                set_window_exclude_from_capture(&window, false);
-                
-                if capture_result.is_ok() {
-                    let _ = window.emit("screenshot:new-session", json!({ "screenshotMode": mode }));
-                    
-                    if let Err(e) = crate::windows::screenshot_window::auto_selection::start_auto_selection(app_for_main.clone()) {
-                        eprintln!("无法启动自动选区: {}", e);
+            let screenshot_windows: Vec<WebviewWindow> = app_for_main
+                .webview_windows()
+                .into_iter()
+                .filter(|(label, _)| label == "screenshot" || label.starts_with("screenshot-"))
+                .map(|(_label, window)| window)
+                .collect();
+
+            if screenshot_windows.is_empty() {
+                return;
+            }
+
+            if capture_result.is_ok() {
+                let is_dev = cfg!(debug_assertions);
+                for (idx, window) in screenshot_windows.iter().enumerate() {
+                    #[cfg(not(target_os = "macos"))]
+                    {
+                        resize_window_to_virtual_screen(window);
                     }
-                } else if let Err(ref e) = capture_result {
-                    eprintln!("截屏失败: {}", e);
+
+                    let _ = window.set_always_on_top(!is_dev);
+                    let _ = window.show();
+                    if idx == 0 {
+                        let _ = window.set_focus();
+                    }
+
+                    // 捕获已完成，这里恢复默认捕获策略（Windows 特有，macOS 下无害）
+                    set_window_exclude_from_capture(window, false);
                 }
+
+                for window in &screenshot_windows {
+                    let _ = window.emit("screenshot:new-session", json!({ "screenshotMode": mode }));
+                }
+                
+                if let Err(e) = crate::windows::screenshot_window::auto_selection::start_auto_selection(app_for_main.clone()) {
+                    eprintln!("无法启动自动选区: {}", e);
+                }
+            } else if let Err(ref e) = capture_result {
+                eprintln!("截屏失败: {}", e);
+                for window in &screenshot_windows {
+                    let _ = window.hide();
+                }
+                let _ = app_for_main
+                    .dialog()
+                    .message(format!("截屏失败：{}\n\n如果你在 macOS 上使用，请确认已开启【系统设置 → 隐私与安全性 → 屏幕录制】权限，并重启应用。", e))
+                    .buttons(MessageDialogButtons::Ok)
+                    .blocking_show();
             }
         });
     });

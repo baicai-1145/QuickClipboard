@@ -159,34 +159,76 @@ export default function useScreenshotStage() {
 
   const reloadFromLastCapture = useCallback(async () => {
     try {
-      const infos = await getLastScreenshotCaptures();
+      let infos = await getLastScreenshotCaptures();
 
       if (!infos || !infos.length) {
         return;
       }
 
-      const dpr = window.devicePixelRatio || 1;
+      const ua = String(globalThis?.navigator?.userAgent || '').toLowerCase();
+      const isMac = ua.includes('mac os x') || ua.includes('macintosh');
 
-      const physicalMinX = Math.min(...infos.map((m) => m.physical_x));
-      const physicalMinY = Math.min(...infos.map((m) => m.physical_y));
-      const physicalMaxX = Math.max(...infos.map((m) => m.physical_x + m.physical_width));
-      const physicalMaxY = Math.max(...infos.map((m) => m.physical_y + m.physical_height));
+      const resolveMonitorIndex = async () => {
+        try {
+          const { getCurrentWebviewWindow } = await import('@tauri-apps/api/webviewWindow');
+          const label = getCurrentWebviewWindow()?.label;
+          if (label === 'screenshot') return 0;
+          const match = String(label || '').match(/^screenshot-(\d+)$/);
+          if (match) return Number(match[1]);
+        } catch {
+        }
 
-      const physicalOffsetX = isFinite(physicalMinX) ? physicalMinX : 0;
-      const physicalOffsetY = isFinite(physicalMinY) ? physicalMinY : 0;
-      const physicalWidth = physicalMaxX - physicalOffsetX;
-      const physicalHeight = physicalMaxY - physicalOffsetY;
+        try {
+          const params = new URLSearchParams(window.location.search);
+          const val = params.get('monitor');
+          if (val == null) return null;
+          const idx = Number(val);
+          return Number.isFinite(idx) ? idx : null;
+        } catch {
+          return null;
+        }
+      };
 
-      const stageWidth = physicalWidth / dpr;
-      const stageHeight = physicalHeight / dpr;
-
-      setStageSize({ width: stageWidth, height: stageHeight });
+      const monitorIndex = await resolveMonitorIndex();
+      if (monitorIndex != null) {
+        const idx = Math.max(0, Math.floor(monitorIndex));
+        const single = infos[idx] ? [infos[idx]] : [];
+        if (!single.length) {
+          console.warn('[Screenshot] monitorIndex 无效:', monitorIndex, 'infos.length=', infos.length);
+          return;
+        }
+        infos = single;
+      }
 
       const loadedScreens = await Promise.all(
         infos.map(async (m) => {
           const imageSource = await loadScreenBitmap(m.file_path);
-          const cssX = (m.physical_x - physicalOffsetX) / dpr;
-          const cssY = (m.physical_y - physicalOffsetY) / dpr;
+
+          if (isMac) {
+            const logicalX = m.logical_x ?? 0;
+            const logicalY = m.logical_y ?? 0;
+            const logicalW = m.logical_width ?? 0;
+            const logicalH = m.logical_height ?? 0;
+
+            return {
+              image: imageSource,
+              x: logicalX,
+              y: logicalY,
+              width: logicalW,
+              height: logicalH,
+              physicalX: m.physical_x,
+              physicalY: m.physical_y,
+              physicalWidth: m.physical_width,
+              physicalHeight: m.physical_height,
+              physicalOffsetX: 0,
+              physicalOffsetY: 0,
+              scaleFactor: m.scale_factor,
+            };
+          }
+
+          const dpr = window.devicePixelRatio || 1;
+          const cssX = (m.physical_x) / dpr;
+          const cssY = (m.physical_y) / dpr;
           const cssWidth = m.physical_width / dpr;
           const cssHeight = m.physical_height / dpr;
           
@@ -203,12 +245,44 @@ export default function useScreenshotStage() {
             physicalWidth: m.physical_width,
             physicalHeight: m.physical_height,
             // 物理偏移（用于坐标转换）
-            physicalOffsetX,
-            physicalOffsetY,
+            physicalOffsetX: 0,
+            physicalOffsetY: 0,
             scaleFactor: m.scale_factor,
           };
         })
       );
+
+      if (isMac) {
+        const minX = Math.min(...loadedScreens.map((s) => s.x));
+        const minY = Math.min(...loadedScreens.map((s) => s.y));
+        const maxX = Math.max(...loadedScreens.map((s) => s.x + s.width));
+        const maxY = Math.max(...loadedScreens.map((s) => s.y + s.height));
+
+        const offsetX = isFinite(minX) ? minX : 0;
+        const offsetY = isFinite(minY) ? minY : 0;
+
+        loadedScreens.forEach((s) => {
+          s.x -= offsetX;
+          s.y -= offsetY;
+        });
+
+        setStageSize({ width: maxX - offsetX, height: maxY - offsetY });
+      } else {
+        const minX = Math.min(...loadedScreens.map((s) => s.x));
+        const minY = Math.min(...loadedScreens.map((s) => s.y));
+        const maxX = Math.max(...loadedScreens.map((s) => s.x + s.width));
+        const maxY = Math.max(...loadedScreens.map((s) => s.y + s.height));
+
+        const offsetX = isFinite(minX) ? minX : 0;
+        const offsetY = isFinite(minY) ? minY : 0;
+
+        loadedScreens.forEach((s) => {
+          s.x -= offsetX;
+          s.y -= offsetY;
+        });
+
+        setStageSize({ width: maxX - offsetX, height: maxY - offsetY });
+      }
 
       setScreens(loadedScreens);
     } catch (error) {

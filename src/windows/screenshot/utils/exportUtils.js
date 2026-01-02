@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import { join } from '@tauri-apps/api/path';
 import { writeFile, mkdir } from '@tauri-apps/plugin-fs';
 import { save } from '@tauri-apps/plugin-dialog';
 import { cancelScreenshotSession } from '@shared/api/system';
@@ -76,9 +77,10 @@ export async function exportToClipboard(stageRef, selection, cornerRadius = 0, {
     const dataDir = await invoke('get_data_directory');
     const hash = await calculateImageHash(uint8Array);
     const filename = `${hash}.png`;
-    const filePath = `${dataDir}\\clipboard_images\\${filename}`;
-    
-    await mkdir(`${dataDir}\\clipboard_images`, { recursive: true });
+    const imagesDir = await join(dataDir, 'clipboard_images');
+    const filePath = await join(imagesDir, filename);
+
+    await mkdir(imagesDir, { recursive: true });
     await writeFile(filePath, uint8Array);
 
     await invoke('copy_image_to_clipboard', { filePath });
@@ -96,9 +98,10 @@ async function savePinImage(blob) {
   const dataDir = await invoke('get_data_directory');
   const hash = await calculateImageHash(uint8Array);
   const filename = `${hash}.png`;
-  const filePath = `${dataDir}\\pin_images\\${filename}`;
+  const imagesDir = await join(dataDir, 'pin_images');
+  const filePath = await join(imagesDir, filename);
   
-  await mkdir(`${dataDir}\\pin_images`, { recursive: true });
+  await mkdir(imagesDir, { recursive: true });
   await writeFile(filePath, uint8Array);
   
   return filePath;
